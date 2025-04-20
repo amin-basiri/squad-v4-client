@@ -8,7 +8,6 @@ WORKDIR /app
 RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 
 # Ensure consistent timestamps for deterministic builds
-ENV NODE_ENV=production
 ENV SOURCE_DATE_EPOCH=315532800
 
 # Copy dependencies first (for better caching)
@@ -22,6 +21,8 @@ COPY . .
 
 # Build the application using Webpack
 RUN yarn build
+
+ENV NODE_ENV=production
 
 # Ensure consistent timestamps for all files in dist/
 RUN find dist -exec touch -d @${SOURCE_DATE_EPOCH} {} + && \
@@ -49,17 +50,17 @@ COPY --from=builder /output/hash.txt /var/build-metadata/hash.txt
 
 # Ensure Nginx serves the correct index.html
 RUN rm /etc/nginx/conf.d/default.conf
-COPY <<EOF /etc/nginx/conf.d/default.conf
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
-    location / {
-        try_files \$uri /index.html;
-    }
-}
-EOF
+RUN echo 'server {' \
+    'listen 80;' \
+    'server_name localhost;' \
+    'root /usr/share/nginx/html;' \
+    'index index.html;' \
+    'location / {' \
+        'try_files \$uri /index.html;' \
+    '}' \
+'}' > /etc/nginx/conf.d/default.conf
+
+
 
 # Expose port 80 for serving the static site
 EXPOSE 80
